@@ -1,19 +1,26 @@
 module Main exposing (..)
 
-import Html exposing (Html, text, div, img)
-import Html.Attributes exposing (src)
+import Html exposing (..)
+import ScrollView
 
 
 ---- MODEL ----
 
 
 type alias Model =
-    {}
+    { scrollView : ScrollView.Model
+    }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( {}, Cmd.none )
+    let
+        ( scrollView, scrollViewCmd ) =
+            ScrollView.init
+    in
+        ( { scrollView = scrollView }
+        , Cmd.map ScrollViewMsg scrollViewCmd
+        )
 
 
 
@@ -21,12 +28,30 @@ init =
 
 
 type Msg
-    = NoOp
+    = ScrollViewMsg ScrollView.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        ScrollViewMsg svmsg ->
+            let
+                ( scrollView, scrollViewCmd ) =
+                    ScrollView.update svmsg model.scrollView
+            in
+                ( { scrollView = scrollView }
+                , Cmd.map ScrollViewMsg scrollViewCmd
+                )
+
+
+
+---- SUBSCRIPTONS ----
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    ScrollView.subscriptions model.scrollView
+        |> Sub.map ScrollViewMsg
 
 
 
@@ -36,9 +61,15 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ img [ src "/logo.svg" ] []
-        , div [] [ text "Your Elm App is working!" ]
+        [ text "Test app:"
+        , viewScrollView model.scrollView
         ]
+
+
+viewScrollView : ScrollView.Model -> Html Msg
+viewScrollView model =
+    ScrollView.view model
+        |> Html.map ScrollViewMsg
 
 
 
