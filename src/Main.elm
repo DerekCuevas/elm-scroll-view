@@ -24,7 +24,7 @@ init : ( Model, Cmd Msg )
 init =
     let
         ( scrollView, scrollViewCmd ) =
-            ScrollView.init
+            ScrollView.init scrollViewId
 
         items =
             List.range 0 20
@@ -51,7 +51,7 @@ update msg model =
         ScrollViewMsg svmsg ->
             let
                 ( scrollView, scrollViewCmd ) =
-                    ScrollView.update svmsg model.scrollView
+                    ScrollView.update svmsg model.scrollView scrollViewId
             in
                 ( { model | scrollView = scrollView }
                 , Cmd.map ScrollViewMsg scrollViewCmd
@@ -104,5 +104,5 @@ main =
         { view = view
         , init = init
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }

@@ -6,9 +6,11 @@ body {
 
 .scroll-view-items {
   display: flex;
+  position: relative;
   margin: 0 10px;
   max-width: 100%;
-  overflow: auto;
+  overflow: hidden;
+  transition: all 0.5s ease;
 }
 
 .scroll-view-items :first-child {
