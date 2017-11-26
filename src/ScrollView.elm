@@ -9,6 +9,7 @@ module ScrollView
         )
 
 import Html exposing (..)
+import Html.Attributes exposing (..)
 
 
 ---- MODEL ----
@@ -49,6 +50,12 @@ subscriptions model =
 ---- VIEW ----
 
 
-view : Model -> Html Msg
-view model =
-    div [] [ text "scroll-view" ]
+type alias ViewConfig msg =
+    { items : List (Html msg)
+    , toMsg : Msg -> msg
+    }
+
+
+view : Model -> ViewConfig msg -> Html msg
+view model viewConfig =
+    div [ class "scroll-view-items" ] viewConfig.items

@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Html exposing (..)
+import Html.Attributes exposing (..)
 import ScrollView
 
 
@@ -8,7 +9,8 @@ import ScrollView
 
 
 type alias Model =
-    { scrollView : ScrollView.Model
+    { items : List String
+    , scrollView : ScrollView.Model
     }
 
 
@@ -17,8 +19,14 @@ init =
     let
         ( scrollView, scrollViewCmd ) =
             ScrollView.init
+
+        items =
+            List.range 0 100
+                |> List.map toString
     in
-        ( { scrollView = scrollView }
+        ( { items = items
+          , scrollView = scrollView
+          }
         , Cmd.map ScrollViewMsg scrollViewCmd
         )
 
@@ -39,7 +47,7 @@ update msg model =
                 ( scrollView, scrollViewCmd ) =
                     ScrollView.update svmsg model.scrollView
             in
-                ( { scrollView = scrollView }
+                ( { model | scrollView = scrollView }
                 , Cmd.map ScrollViewMsg scrollViewCmd
                 )
 
@@ -62,14 +70,21 @@ view : Model -> Html Msg
 view model =
     div []
         [ text "Test app:"
-        , viewScrollView model.scrollView
+        , viewScrollView model
         ]
 
 
-viewScrollView : ScrollView.Model -> Html Msg
+viewScrollView : Model -> Html Msg
 viewScrollView model =
-    ScrollView.view model
-        |> Html.map ScrollViewMsg
+    ScrollView.view model.scrollView
+        { items = List.map viewItem model.items
+        , toMsg = ScrollViewMsg
+        }
+
+
+viewItem : String -> Html Msg
+viewItem item =
+    div [ class "item" ] [ text item ]
 
 
 

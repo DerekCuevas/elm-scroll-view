@@ -3,3 +3,16 @@ body {
   margin: 0;
   color: #293c4b;
 }
+
+.scroll-view-items {
+  display: flex;
+  margin: 0 5px;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.item {
+  padding: 40px 80px;
+  margin: 5px;
+  background: #eee;
+}
