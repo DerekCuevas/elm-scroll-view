@@ -6,9 +6,17 @@ body {
 
 .scroll-view-items {
   display: flex;
-  margin: 0 5px;
+  margin: 0 10px;
   max-width: 100%;
   overflow: auto;
+}
+
+.scroll-view-items :first-child {
+  margin-left: 0;
+}
+
+.scroll-view-items :last-child {
+  margin-left: 0;
 }
 
 .item {

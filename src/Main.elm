@@ -27,7 +27,7 @@ init =
             ScrollView.init
 
         items =
-            List.range 0 100
+            List.range 0 20
                 |> List.map toString
     in
         ( { items = items
