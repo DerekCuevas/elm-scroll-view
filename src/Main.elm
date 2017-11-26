@@ -5,6 +5,12 @@ import Html.Attributes exposing (..)
 import ScrollView
 
 
+scrollViewId : String
+scrollViewId =
+    "items-scroll-view"
+
+
+
 ---- MODEL ----
 
 
@@ -77,7 +83,8 @@ view model =
 viewScrollView : Model -> Html Msg
 viewScrollView model =
     ScrollView.view model.scrollView
-        { items = List.map viewItem model.items
+        { id = scrollViewId
+        , items = List.map viewItem model.items
         , toMsg = ScrollViewMsg
         }
 

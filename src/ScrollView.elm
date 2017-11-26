@@ -51,11 +51,13 @@ subscriptions model =
 
 
 type alias ViewConfig msg =
-    { items : List (Html msg)
+    { id : String
+    , items : List (Html msg)
     , toMsg : Msg -> msg
     }
 
 
 view : Model -> ViewConfig msg -> Html msg
 view model viewConfig =
-    div [ class "scroll-view-items" ] viewConfig.items
+    div [ id viewConfig.id, class "scroll-view-items" ]
+        viewConfig.items
