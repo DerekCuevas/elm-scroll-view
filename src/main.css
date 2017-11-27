@@ -20,7 +20,11 @@ body {
 }
 
 .scroll-view-items :last-child {
-  margin-left: 0;
+  margin-right: 0;
+}
+
+.scroll-view-items :nth-child(2n) {
+  background: #ddd;
 }
 
 .item {

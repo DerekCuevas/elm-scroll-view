@@ -12,10 +12,13 @@ port module ScrollView
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Task
+import Task exposing (Task)
 import Window
 import Dom
 import Dom.Scroll
+
+
+-- DATA --
 
 
 type alias Rect =
@@ -63,21 +66,30 @@ remeasure scrollViewId =
         ]
 
 
+{-| NOTE:
+wrapping Dom.Scroll.toX to return the new scrollLeft value in the task
+-}
+scrollToX : String -> Float -> Task Dom.Error Float
+scrollToX scrollViewId scrollLeft =
+    Task.map2 (,) (Dom.Scroll.toX scrollViewId scrollLeft) (Task.succeed scrollLeft)
+        |> Task.map Tuple.second
+
+
 scrollLeftBy : String -> (Float -> Float) -> Cmd Msg
-scrollLeftBy id by =
-    Dom.Scroll.x id
-        |> Task.andThen (by >> Dom.Scroll.toX id)
+scrollLeftBy scrollViewId by =
+    Dom.Scroll.x scrollViewId
+        |> Task.andThen (by >> scrollToX scrollViewId)
         |> Task.attempt ScrollResult
 
 
 scrollLeft : String -> Rect -> Cmd Msg
-scrollLeft id rect =
-    scrollLeftBy id (\left -> left + rect.width)
+scrollLeft scrollViewId rect =
+    scrollLeftBy scrollViewId (\left -> left + rect.width)
 
 
 scrollRight : String -> Rect -> Cmd Msg
-scrollRight id rect =
-    scrollLeftBy id (\left -> left - rect.width)
+scrollRight scrollViewId rect =
+    scrollLeftBy scrollViewId (\left -> Basics.max 0 (left - rect.width))
 
 
 
@@ -101,6 +113,16 @@ init scrollViewId =
     )
 
 
+isOverflowingLeft : Model -> Bool
+isOverflowingLeft model =
+    model.scrollLeft /= 0
+
+
+isOverflowingRight : Model -> Bool
+isOverflowingRight { rect, scrollLeft, scrollWidth } =
+    (rect.width + scrollLeft) < scrollWidth
+
+
 
 ---- UPDATE ----
 
@@ -108,7 +130,7 @@ init scrollViewId =
 type Msg
     = ScrollLeft
     | ScrollRight
-    | ScrollResult (Result Dom.Error ())
+    | ScrollResult (Result Dom.Error Float)
     | SetBoundingClientRect { id : String, rect : Rect }
     | SetScrollWidth { id : String, scrollWidth : Float }
     | Resize Window.Size
@@ -123,7 +145,10 @@ update msg model scrollViewId =
         ScrollRight ->
             ( model, scrollRight scrollViewId model.rect )
 
-        ScrollResult result ->
+        ScrollResult (Ok scrollLeft) ->
+            ( { model | scrollLeft = scrollLeft }, Cmd.none )
+
+        ScrollResult (Err _) ->
             ( model, Cmd.none )
 
         SetBoundingClientRect { id, rect } ->
@@ -170,6 +195,14 @@ view : Model -> Config msg -> Html msg
 view model config =
     div []
         [ div [ id config.id, class "scroll-view-items" ] config.items
-        , button [ onClick (config.toMsg ScrollRight) ] [ text "<" ]
-        , button [ onClick (config.toMsg ScrollLeft) ] [ text ">" ]
+        , button
+            [ onClick (config.toMsg ScrollRight)
+            , disabled (not (isOverflowingLeft model))
+            ]
+            [ text "<" ]
+        , button
+            [ onClick (config.toMsg ScrollLeft)
+            , disabled (not (isOverflowingRight model))
+            ]
+            [ text ">" ]
         ]

@@ -22,7 +22,6 @@ app.ports.getBoundingClientRect.subscribe(({ id }) => {
 
 app.ports.getScrollWidth.subscribe(({ id }) => {
   withElementIfExists(id, (element) => {
-    console.log(element.scrollWidth);
     app.ports.setScrollWidth.send({
       id, scrollWidth: element.scrollWidth
     });
