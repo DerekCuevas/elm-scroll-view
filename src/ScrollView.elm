@@ -9,6 +9,9 @@ port module ScrollView
         , remeasure
         )
 
+-- TODO:
+-- make duration and ease function configurable
+
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -19,6 +22,7 @@ import Dom
 import Dom.Scroll
 import AnimationFrame
 import Animation exposing (Animation)
+import Ease
 
 
 -- DATA --
@@ -39,6 +43,16 @@ initRect =
     , width = 0
     , height = 0
     }
+
+
+scrollDuration : Time
+scrollDuration =
+    Time.second / 2
+
+
+scrollEase : Float -> Float
+scrollEase =
+    Ease.inOutSine
 
 
 
@@ -77,23 +91,11 @@ scrollToX scrollViewId scrollLeft =
         |> Task.attempt ScrollResult
 
 
-scrollLeft : String -> Rect -> Float -> Float -> Cmd Msg
-scrollLeft scrollViewId rect scrollLeft scrollWidth =
-    Basics.min (scrollWidth - rect.width) (scrollLeft + rect.width)
-        |> scrollToX scrollViewId
-
-
-scrollRight : String -> Rect -> Float -> Cmd Msg
-scrollRight scrollViewId rect scrollLeft =
-    Basics.max 0 (scrollLeft - rect.width)
-        |> scrollToX scrollViewId
-
-
 
 ---- MODEL ----
 
 
-{-| FIXME: scrollLeft = animation
+{-| FIXME: scrollLeft = animation?
 -}
 type alias Model =
     { rect : Rect
@@ -126,6 +128,28 @@ isOverflowingRight { rect, scrollLeft, scrollWidth } =
     (rect.width + scrollLeft) < scrollWidth
 
 
+animateScrollLeft : Model -> Animation
+animateScrollLeft { clock, rect, scrollWidth, scrollLeft, scrollLeftAnimation } =
+    let
+        scrollTo =
+            Basics.min (scrollWidth - rect.width) (scrollLeft + rect.width)
+    in
+        Animation.retarget clock scrollTo scrollLeftAnimation
+            |> Animation.ease scrollEase
+            |> Animation.duration scrollDuration
+
+
+animateScrollRight : Model -> Animation
+animateScrollRight { clock, rect, scrollWidth, scrollLeft, scrollLeftAnimation } =
+    let
+        scrollTo =
+            Basics.max 0 (scrollLeft - rect.width)
+    in
+        Animation.retarget clock scrollTo scrollLeftAnimation
+            |> Animation.ease scrollEase
+            |> Animation.duration scrollDuration
+
+
 
 ---- UPDATE ----
 
@@ -144,10 +168,14 @@ update : Msg -> Model -> String -> ( Model, Cmd Msg )
 update msg model scrollViewId =
     case msg of
         ScrollLeft ->
-            ( model, scrollLeft scrollViewId model.rect model.scrollLeft model.scrollWidth )
+            ( { model | scrollLeftAnimation = animateScrollLeft model }
+            , Cmd.none
+            )
 
         ScrollRight ->
-            ( model, scrollRight scrollViewId model.rect model.scrollLeft )
+            ( { model | scrollLeftAnimation = animateScrollRight model }
+            , Cmd.none
+            )
 
         ScrollResult (Ok scrollLeft) ->
             ( { model | scrollLeft = scrollLeft }, Cmd.none )
@@ -171,7 +199,17 @@ update msg model scrollViewId =
             ( model, remeasure scrollViewId )
 
         Tick time ->
-            ( { model | clock = model.clock + time }, Cmd.none )
+            let
+                clock =
+                    model.clock + time
+            in
+                ( { model | clock = clock }
+                , if Animation.isRunning clock model.scrollLeftAnimation then
+                    Animation.animate clock model.scrollLeftAnimation
+                        |> scrollToX scrollViewId
+                  else
+                    Cmd.none
+                )
 
 
 
@@ -182,9 +220,12 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Window.resizes Resize
-        , AnimationFrame.diffs Tick
         , setBoundingClientRect SetBoundingClientRect
         , setScrollWidth SetScrollWidth
+        , if Animation.isDone model.clock model.scrollLeftAnimation then
+            Sub.none
+          else
+            AnimationFrame.diffs Tick
         ]
 
 
