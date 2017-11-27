@@ -13,9 +13,12 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Task exposing (Task)
+import Time exposing (Time)
 import Window
 import Dom
 import Dom.Scroll
+import AnimationFrame
+import Animation exposing (Animation)
 
 
 -- DATA --
@@ -66,44 +69,38 @@ remeasure scrollViewId =
         ]
 
 
-scrollToX : String -> Float -> Task Dom.Error Float
+scrollToX : String -> Float -> Cmd Msg
 scrollToX scrollViewId scrollLeft =
     Task.succeed scrollLeft
         |> Task.map2 (,) (Dom.Scroll.toX scrollViewId scrollLeft)
         |> Task.map Tuple.second
-
-
-scrollLeftBy : String -> (Float -> Float) -> Cmd Msg
-scrollLeftBy scrollViewId by =
-    Dom.Scroll.x scrollViewId
-        |> Task.andThen (by >> scrollToX scrollViewId)
         |> Task.attempt ScrollResult
 
 
-scrollLeft : String -> Rect -> Float -> Cmd Msg
-scrollLeft scrollViewId rect scrollWidth =
-    scrollLeftBy scrollViewId
-        (\left ->
-            Basics.min (scrollWidth - rect.width) (left + rect.width)
-        )
+scrollLeft : String -> Rect -> Float -> Float -> Cmd Msg
+scrollLeft scrollViewId rect scrollLeft scrollWidth =
+    Basics.min (scrollWidth - rect.width) (scrollLeft + rect.width)
+        |> scrollToX scrollViewId
 
 
-scrollRight : String -> Rect -> Cmd Msg
-scrollRight scrollViewId rect =
-    scrollLeftBy scrollViewId
-        (\left ->
-            Basics.max 0 (left - rect.width)
-        )
+scrollRight : String -> Rect -> Float -> Cmd Msg
+scrollRight scrollViewId rect scrollLeft =
+    Basics.max 0 (scrollLeft - rect.width)
+        |> scrollToX scrollViewId
 
 
 
 ---- MODEL ----
 
 
+{-| FIXME: scrollLeft = animation
+-}
 type alias Model =
     { rect : Rect
     , scrollLeft : Float
     , scrollWidth : Float
+    , scrollLeftAnimation : Animation
+    , clock : Time
     }
 
 
@@ -112,6 +109,8 @@ init scrollViewId =
     ( { rect = initRect
       , scrollLeft = 0
       , scrollWidth = 0
+      , scrollLeftAnimation = Animation.static 0
+      , clock = 0
       }
     , remeasure scrollViewId
     )
@@ -138,16 +137,17 @@ type Msg
     | SetBoundingClientRect { id : String, rect : Rect }
     | SetScrollWidth { id : String, scrollWidth : Float }
     | Resize Window.Size
+    | Tick Time
 
 
 update : Msg -> Model -> String -> ( Model, Cmd Msg )
 update msg model scrollViewId =
     case msg of
         ScrollLeft ->
-            ( model, scrollLeft scrollViewId model.rect model.scrollWidth )
+            ( model, scrollLeft scrollViewId model.rect model.scrollLeft model.scrollWidth )
 
         ScrollRight ->
-            ( model, scrollRight scrollViewId model.rect )
+            ( model, scrollRight scrollViewId model.rect model.scrollLeft )
 
         ScrollResult (Ok scrollLeft) ->
             ( { model | scrollLeft = scrollLeft }, Cmd.none )
@@ -170,6 +170,9 @@ update msg model scrollViewId =
         Resize _ ->
             ( model, remeasure scrollViewId )
 
+        Tick time ->
+            ( { model | clock = model.clock + time }, Cmd.none )
+
 
 
 ---- SUBSCRIPTONS ----
@@ -179,6 +182,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Window.resizes Resize
+        , AnimationFrame.diffs Tick
         , setBoundingClientRect SetBoundingClientRect
         , setScrollWidth SetScrollWidth
         ]
