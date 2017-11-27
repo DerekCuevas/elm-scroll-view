@@ -6,6 +6,7 @@ port module ScrollView
         , update
         , subscriptions
         , view
+        , remeasure
         )
 
 import Html exposing (..)
@@ -44,8 +45,22 @@ port getBoundingClientRect : { id : String } -> Cmd msg
 port setBoundingClientRect : ({ id : String, rect : Rect } -> msg) -> Sub msg
 
 
+port getScrollWidth : { id : String } -> Cmd msg
+
+
+port setScrollWidth : ({ id : String, scrollWidth : Float } -> msg) -> Sub msg
+
+
 
 -- COMMANDS --
+
+
+remeasure : String -> Cmd Msg
+remeasure scrollViewId =
+    Cmd.batch
+        [ getBoundingClientRect { id = scrollViewId }
+        , getScrollWidth { id = scrollViewId }
+        ]
 
 
 scrollLeftBy : String -> (Float -> Float) -> Cmd Msg
@@ -71,13 +86,18 @@ scrollRight id rect =
 
 type alias Model =
     { rect : Rect
+    , scrollLeft : Float
+    , scrollWidth : Float
     }
 
 
 init : String -> ( Model, Cmd Msg )
-init id =
-    ( { rect = initRect }
-    , getBoundingClientRect { id = id }
+init scrollViewId =
+    ( { rect = initRect
+      , scrollLeft = 0
+      , scrollWidth = 0
+      }
+    , remeasure scrollViewId
     )
 
 
@@ -90,28 +110,36 @@ type Msg
     | ScrollRight
     | ScrollResult (Result Dom.Error ())
     | SetBoundingClientRect { id : String, rect : Rect }
+    | SetScrollWidth { id : String, scrollWidth : Float }
     | Resize Window.Size
 
 
 update : Msg -> Model -> String -> ( Model, Cmd Msg )
-update msg model id =
+update msg model scrollViewId =
     case msg of
         ScrollLeft ->
-            ( model, scrollLeft id model.rect )
+            ( model, scrollLeft scrollViewId model.rect )
 
         ScrollRight ->
-            ( model, scrollRight id model.rect )
+            ( model, scrollRight scrollViewId model.rect )
 
         ScrollResult result ->
             ( model, Cmd.none )
 
         SetBoundingClientRect { id, rect } ->
-            ( { model | rect = rect }
-            , Cmd.none
-            )
+            if id == scrollViewId then
+                ( { model | rect = rect }, Cmd.none )
+            else
+                ( model, Cmd.none )
+
+        SetScrollWidth { id, scrollWidth } ->
+            if id == scrollViewId then
+                ( { model | scrollWidth = scrollWidth }, Cmd.none )
+            else
+                ( model, Cmd.none )
 
         Resize _ ->
-            ( model, getBoundingClientRect { id = id } )
+            ( model, remeasure scrollViewId )
 
 
 
@@ -123,6 +151,7 @@ subscriptions model =
     Sub.batch
         [ Window.resizes Resize
         , setBoundingClientRect SetBoundingClientRect
+        , setScrollWidth SetScrollWidth
         ]
 
 
