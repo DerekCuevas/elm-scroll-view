@@ -66,12 +66,10 @@ remeasure scrollViewId =
         ]
 
 
-{-| NOTE:
-wrapping Dom.Scroll.toX to return the new scrollLeft value in the task
--}
 scrollToX : String -> Float -> Task Dom.Error Float
 scrollToX scrollViewId scrollLeft =
-    Task.map2 (,) (Dom.Scroll.toX scrollViewId scrollLeft) (Task.succeed scrollLeft)
+    Task.succeed scrollLeft
+        |> Task.map2 (,) (Dom.Scroll.toX scrollViewId scrollLeft)
         |> Task.map Tuple.second
 
 
