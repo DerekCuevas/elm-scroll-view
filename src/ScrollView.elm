@@ -80,14 +80,20 @@ scrollLeftBy scrollViewId by =
         |> Task.attempt ScrollResult
 
 
-scrollLeft : String -> Rect -> Cmd Msg
-scrollLeft scrollViewId rect =
-    scrollLeftBy scrollViewId (\left -> left + rect.width)
+scrollLeft : String -> Rect -> Float -> Cmd Msg
+scrollLeft scrollViewId rect scrollWidth =
+    scrollLeftBy scrollViewId
+        (\left ->
+            Basics.min (scrollWidth - rect.width) (left + rect.width)
+        )
 
 
 scrollRight : String -> Rect -> Cmd Msg
 scrollRight scrollViewId rect =
-    scrollLeftBy scrollViewId (\left -> Basics.max 0 (left - rect.width))
+    scrollLeftBy scrollViewId
+        (\left ->
+            Basics.max 0 (left - rect.width)
+        )
 
 
 
@@ -138,7 +144,7 @@ update : Msg -> Model -> String -> ( Model, Cmd Msg )
 update msg model scrollViewId =
     case msg of
         ScrollLeft ->
-            ( model, scrollLeft scrollViewId model.rect )
+            ( model, scrollLeft scrollViewId model.rect model.scrollWidth )
 
         ScrollRight ->
             ( model, scrollRight scrollViewId model.rect )
