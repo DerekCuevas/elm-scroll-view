@@ -2,12 +2,22 @@ module Main exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Time
+import Ease
 import ScrollView
 
 
 scrollViewId : String
 scrollViewId =
     "items-scroll-view"
+
+
+scrollViewConfig : ScrollView.Config
+scrollViewConfig =
+    { id = "items-scroll-view"
+    , ease = Ease.inOutSine
+    , duration = Time.second / 2
+    }
 
 
 
@@ -24,7 +34,7 @@ init : ( Model, Cmd Msg )
 init =
     let
         ( scrollView, scrollViewCmd ) =
-            ScrollView.init scrollViewId
+            ScrollView.init scrollViewConfig
 
         items =
             List.range 0 20
@@ -51,7 +61,7 @@ update msg model =
         ScrollViewMsg svmsg ->
             let
                 ( scrollView, scrollViewCmd ) =
-                    ScrollView.update svmsg model.scrollView scrollViewId
+                    ScrollView.update scrollViewConfig svmsg model.scrollView
             in
                 ( { model | scrollView = scrollView }
                 , Cmd.map ScrollViewMsg scrollViewCmd
@@ -82,9 +92,9 @@ view model =
 
 viewScrollView : Model -> Html Msg
 viewScrollView model =
-    ScrollView.view model.scrollView
-        { id = scrollViewId
-        , items = List.map viewItem model.items
+    ScrollView.view scrollViewConfig
+        model.scrollView
+        { items = List.map viewItem model.items
         , toMsg = ScrollViewMsg
         }
 

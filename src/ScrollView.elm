@@ -1,6 +1,7 @@
 port module ScrollView
     exposing
-        ( Model
+        ( Config
+        , Model
         , Msg
         , init
         , update
@@ -8,9 +9,6 @@ port module ScrollView
         , view
         , remeasure
         )
-
--- TODO:
--- make duration and ease function configurable
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -22,7 +20,6 @@ import Dom
 import Dom.Scroll
 import AnimationFrame
 import Animation exposing (Animation)
-import Ease
 
 
 -- DATA --
@@ -43,16 +40,6 @@ initRect =
     , width = 0
     , height = 0
     }
-
-
-scrollDuration : Time
-scrollDuration =
-    Time.second / 2
-
-
-scrollEase : Float -> Float
-scrollEase =
-    Ease.inOutSine
 
 
 
@@ -85,9 +72,7 @@ remeasure scrollViewId =
 
 scrollToX : String -> Float -> Cmd Msg
 scrollToX scrollViewId scrollLeft =
-    Task.succeed scrollLeft
-        |> Task.map2 (,) (Dom.Scroll.toX scrollViewId scrollLeft)
-        |> Task.map Tuple.second
+    Dom.Scroll.toX scrollViewId scrollLeft
         |> Task.attempt ScrollResult
 
 
@@ -95,59 +80,62 @@ scrollToX scrollViewId scrollLeft =
 ---- MODEL ----
 
 
-{-| FIXME: scrollLeft = animation?
--}
+type alias Config =
+    { id : String
+    , ease : Float -> Float
+    , duration : Time
+    }
+
+
 type alias Model =
     { rect : Rect
-    , scrollLeft : Float
     , scrollWidth : Float
     , scrollLeftAnimation : Animation
     , clock : Time
     }
 
 
-init : String -> ( Model, Cmd Msg )
-init scrollViewId =
+init : Config -> ( Model, Cmd Msg )
+init config =
     ( { rect = initRect
-      , scrollLeft = 0
       , scrollWidth = 0
       , scrollLeftAnimation = Animation.static 0
       , clock = 0
       }
-    , remeasure scrollViewId
+    , remeasure config.id
     )
 
 
 isOverflowingLeft : Model -> Bool
-isOverflowingLeft model =
-    model.scrollLeft /= 0
+isOverflowingLeft { scrollLeftAnimation } =
+    (Animation.getTo scrollLeftAnimation) /= 0
 
 
 isOverflowingRight : Model -> Bool
-isOverflowingRight { rect, scrollLeft, scrollWidth } =
-    (rect.width + scrollLeft) < scrollWidth
+isOverflowingRight { rect, scrollWidth, scrollLeftAnimation } =
+    (rect.width + (Animation.getTo scrollLeftAnimation)) < scrollWidth
 
 
-animateScrollLeft : Model -> Animation
-animateScrollLeft { clock, rect, scrollWidth, scrollLeft, scrollLeftAnimation } =
+animateScrollLeft : Config -> Model -> Animation
+animateScrollLeft config { clock, rect, scrollWidth, scrollLeftAnimation } =
     let
         scrollTo =
-            Basics.min (scrollWidth - rect.width) (scrollLeft + rect.width)
+            Basics.min (scrollWidth - rect.width) ((Animation.getTo scrollLeftAnimation) + rect.width)
     in
         Animation.retarget clock scrollTo scrollLeftAnimation
-            |> Animation.ease scrollEase
-            |> Animation.duration scrollDuration
+            |> Animation.ease config.ease
+            |> Animation.duration config.duration
 
 
-animateScrollRight : Model -> Animation
-animateScrollRight { clock, rect, scrollWidth, scrollLeft, scrollLeftAnimation } =
+animateScrollRight : Config -> Model -> Animation
+animateScrollRight config { clock, rect, scrollWidth, scrollLeftAnimation } =
     let
         scrollTo =
-            Basics.max 0 (scrollLeft - rect.width)
+            Basics.max 0 ((Animation.getTo scrollLeftAnimation) - rect.width)
     in
         Animation.retarget clock scrollTo scrollLeftAnimation
-            |> Animation.ease scrollEase
-            |> Animation.duration scrollDuration
+            |> Animation.ease config.ease
+            |> Animation.duration config.duration
 
 
 
@@ -157,46 +145,43 @@ animateScrollRight { clock, rect, scrollWidth, scrollLeft, scrollLeftAnimation }
 type Msg
     = ScrollLeft
     | ScrollRight
-    | ScrollResult (Result Dom.Error Float)
+    | ScrollResult (Result Dom.Error ())
     | SetBoundingClientRect { id : String, rect : Rect }
     | SetScrollWidth { id : String, scrollWidth : Float }
     | Resize Window.Size
     | Tick Time
 
 
-update : Msg -> Model -> String -> ( Model, Cmd Msg )
-update msg model scrollViewId =
+update : Config -> Msg -> Model -> ( Model, Cmd Msg )
+update config msg model =
     case msg of
         ScrollLeft ->
-            ( { model | scrollLeftAnimation = animateScrollLeft model }
+            ( { model | scrollLeftAnimation = animateScrollLeft config model }
             , Cmd.none
             )
 
         ScrollRight ->
-            ( { model | scrollLeftAnimation = animateScrollRight model }
+            ( { model | scrollLeftAnimation = animateScrollRight config model }
             , Cmd.none
             )
 
-        ScrollResult (Ok scrollLeft) ->
-            ( { model | scrollLeft = scrollLeft }, Cmd.none )
-
-        ScrollResult (Err _) ->
+        ScrollResult _ ->
             ( model, Cmd.none )
 
         SetBoundingClientRect { id, rect } ->
-            if id == scrollViewId then
+            if id == config.id then
                 ( { model | rect = rect }, Cmd.none )
             else
                 ( model, Cmd.none )
 
         SetScrollWidth { id, scrollWidth } ->
-            if id == scrollViewId then
+            if id == config.id then
                 ( { model | scrollWidth = scrollWidth }, Cmd.none )
             else
                 ( model, Cmd.none )
 
         Resize _ ->
-            ( model, remeasure scrollViewId )
+            ( model, remeasure config.id )
 
         Tick time ->
             let
@@ -204,11 +189,8 @@ update msg model scrollViewId =
                     model.clock + time
             in
                 ( { model | clock = clock }
-                , if Animation.isRunning clock model.scrollLeftAnimation then
-                    Animation.animate clock model.scrollLeftAnimation
-                        |> scrollToX scrollViewId
-                  else
-                    Cmd.none
+                , Animation.animate clock model.scrollLeftAnimation
+                    |> scrollToX config.id
                 )
 
 
@@ -233,24 +215,23 @@ subscriptions model =
 ---- VIEW ----
 
 
-type alias Config msg =
-    { id : String
-    , items : List (Html msg)
+type alias ViewConfig msg =
+    { items : List (Html msg)
     , toMsg : Msg -> msg
     }
 
 
-view : Model -> Config msg -> Html msg
-view model config =
+view : Config -> Model -> ViewConfig msg -> Html msg
+view config model viewConfig =
     div []
-        [ div [ id config.id, class "scroll-view-items" ] config.items
+        [ div [ id config.id, class "scroll-view-items" ] viewConfig.items
         , button
-            [ onClick (config.toMsg ScrollRight)
+            [ onClick (viewConfig.toMsg ScrollRight)
             , disabled (not (isOverflowingLeft model))
             ]
             [ text "<" ]
         , button
-            [ onClick (config.toMsg ScrollLeft)
+            [ onClick (viewConfig.toMsg ScrollLeft)
             , disabled (not (isOverflowingRight model))
             ]
             [ text ">" ]
