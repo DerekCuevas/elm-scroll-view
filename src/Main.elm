@@ -7,11 +7,6 @@ import Ease
 import ScrollView
 
 
-scrollViewId : String
-scrollViewId =
-    "items-scroll-view"
-
-
 scrollViewConfig : ScrollView.Config
 scrollViewConfig =
     { id = "items-scroll-view"
@@ -25,7 +20,7 @@ scrollViewConfig =
 
 
 type alias Model =
-    { items : List String
+    { items : List Int
     , scrollView : ScrollView.Model
     }
 
@@ -35,12 +30,8 @@ init =
     let
         ( scrollView, scrollViewCmd ) =
             ScrollView.init scrollViewConfig
-
-        items =
-            List.range 0 20
-                |> List.map toString
     in
-        ( { items = items
+        ( { items = List.range 0 20
           , scrollView = scrollView
           }
         , Cmd.map ScrollViewMsg scrollViewCmd
@@ -85,7 +76,7 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div [ class "container" ]
-        [ text "Test app:"
+        [ h3 [] [ text "Test app:" ]
         , viewScrollView model
         ]
 
@@ -99,9 +90,9 @@ viewScrollView model =
         }
 
 
-viewItem : String -> Html Msg
-viewItem item =
-    div [ class "item" ] [ text item ]
+viewItem : Int -> Html Msg
+viewItem index =
+    div [ class "item" ] [ text (toString index) ]
 
 
 

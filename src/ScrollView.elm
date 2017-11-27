@@ -1,6 +1,7 @@
 port module ScrollView
     exposing
         ( Config
+        , ViewConfig
         , Model
         , Msg
         , init
@@ -8,6 +9,8 @@ port module ScrollView
         , subscriptions
         , view
         , remeasure
+        , isOverflowingLeft
+        , isOverflowingRight
         )
 
 import Html exposing (..)
@@ -26,18 +29,14 @@ import Animation exposing (Animation)
 
 
 type alias Rect =
-    { x : Float
-    , y : Float
-    , width : Float
+    { width : Float
     , height : Float
     }
 
 
 initRect : Rect
 initRect =
-    { x = 0
-    , y = 0
-    , width = 0
+    { width = 0
     , height = 0
     }
 
@@ -70,8 +69,8 @@ remeasure scrollViewId =
         ]
 
 
-scrollToX : String -> Float -> Cmd Msg
-scrollToX scrollViewId scrollLeft =
+scrollLeft : String -> Float -> Cmd Msg
+scrollLeft scrollViewId scrollLeft =
     Dom.Scroll.toX scrollViewId scrollLeft
         |> Task.attempt ScrollResult
 
@@ -108,21 +107,22 @@ init config =
 
 isOverflowingLeft : Model -> Bool
 isOverflowingLeft { scrollLeftAnimation } =
-    (Animation.getTo scrollLeftAnimation) /= 0
+    Animation.getTo scrollLeftAnimation /= 0
 
 
 isOverflowingRight : Model -> Bool
 isOverflowingRight { rect, scrollWidth, scrollLeftAnimation } =
-    (rect.width + (Animation.getTo scrollLeftAnimation)) < scrollWidth
+    rect.width + (Animation.getTo scrollLeftAnimation) < scrollWidth
 
 
 animateScrollLeft : Config -> Model -> Animation
 animateScrollLeft config { clock, rect, scrollWidth, scrollLeftAnimation } =
     let
-        scrollTo =
-            Basics.min (scrollWidth - rect.width) ((Animation.getTo scrollLeftAnimation) + rect.width)
+        scrollLeftTo =
+            Basics.min (scrollWidth - rect.width)
+                (Animation.getTo scrollLeftAnimation + rect.width)
     in
-        Animation.retarget clock scrollTo scrollLeftAnimation
+        Animation.retarget clock scrollLeftTo scrollLeftAnimation
             |> Animation.ease config.ease
             |> Animation.duration config.duration
 
@@ -130,10 +130,10 @@ animateScrollLeft config { clock, rect, scrollWidth, scrollLeftAnimation } =
 animateScrollRight : Config -> Model -> Animation
 animateScrollRight config { clock, rect, scrollWidth, scrollLeftAnimation } =
     let
-        scrollTo =
-            Basics.max 0 ((Animation.getTo scrollLeftAnimation) - rect.width)
+        scrollLeftTo =
+            Basics.max 0 (Animation.getTo scrollLeftAnimation - rect.width)
     in
-        Animation.retarget clock scrollTo scrollLeftAnimation
+        Animation.retarget clock scrollLeftTo scrollLeftAnimation
             |> Animation.ease config.ease
             |> Animation.duration config.duration
 
@@ -190,7 +190,7 @@ update config msg model =
             in
                 ( { model | clock = clock }
                 , Animation.animate clock model.scrollLeftAnimation
-                    |> scrollToX config.id
+                    |> scrollLeft config.id
                 )
 
 
