@@ -4,13 +4,15 @@ body {
   color: #293c4b;
 }
 
+.container {
+  margin: 0 10px;
+}
+
 .scroll-view-items {
   display: flex;
   position: relative;
-  margin: 0 10px;
   max-width: 100%;
   overflow: hidden;
-  transition: all 0.5s ease;
 }
 
 .scroll-view-items :first-child {

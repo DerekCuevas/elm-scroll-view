@@ -25,6 +25,15 @@ type alias Rect =
     }
 
 
+initRect : Rect
+initRect =
+    { x = 0
+    , y = 0
+    , width = 0
+    , height = 0
+    }
+
+
 
 -- PORTS --
 
@@ -61,13 +70,13 @@ scrollRight id rect =
 
 
 type alias Model =
-    { rect : Maybe Rect
+    { rect : Rect
     }
 
 
 init : String -> ( Model, Cmd Msg )
 init id =
-    ( { rect = Nothing }
+    ( { rect = initRect }
     , getBoundingClientRect { id = id }
     )
 
@@ -88,24 +97,16 @@ update : Msg -> Model -> String -> ( Model, Cmd Msg )
 update msg model id =
     case msg of
         ScrollLeft ->
-            ( model
-            , model.rect
-                |> Maybe.map (scrollLeft id)
-                |> Maybe.withDefault Cmd.none
-            )
+            ( model, scrollLeft id model.rect )
 
         ScrollRight ->
-            ( model
-            , model.rect
-                |> Maybe.map (scrollRight id)
-                |> Maybe.withDefault Cmd.none
-            )
+            ( model, scrollRight id model.rect )
 
         ScrollResult result ->
             ( model, Cmd.none )
 
         SetBoundingClientRect { id, rect } ->
-            ( { model | rect = Just rect }
+            ( { model | rect = rect }
             , Cmd.none
             )
 

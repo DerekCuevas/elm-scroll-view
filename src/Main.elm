@@ -74,7 +74,7 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div []
+    div [ class "container" ]
         [ text "Test app:"
         , viewScrollView model
         ]
